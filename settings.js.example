@@ -1,0 +1,8 @@
+var settings = {}
+
+settings.app = {
+  usr:'your_username'
+  psw:'your_password'
+}
+
+module.exports = settings;

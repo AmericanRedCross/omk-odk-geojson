@@ -1,0 +1,26 @@
+{
+  "name": "omk-odk-geojson",
+  "version": "0.0.0",
+  "description": "Script to make GeoJSON of OpenMapKit survey submissions.",
+  "main": "omk-odk-geojson.js",
+  "dependencies": {
+    "geojson-merge": "^1.0.2",
+    "osm-and-geojson": "^0.1.2",
+    "osmtogeojson": "^3.0.0-beta.0",
+    "request": "^2.79.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AmericanRedCross/omk-odk-geojson.git"
+  },
+  "author": "Max Grossman",
+  "license": "BSD-3-Clause",
+  "bugs": {
+    "url": "https://github.com/AmericanRedCross/omk-odk-geojson/issues"
+  },
+  "homepage": "https://github.com/AmericanRedCross/omk-odk-geojson#readme"
+}
