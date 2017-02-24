@@ -30,8 +30,8 @@ var fetchSurvey = function(projectName) {
   request({
     method: 'GET',
     'auth': {
-      'user': settings.app.usr,
-      'pass': settings.app.psw
+      'user': settings.app.user,
+      'pass': settings.app.pass
     },
     uri: 'http://omkserver.com/omk/odk/submissions/' + projectName + '.json'
   },
@@ -43,48 +43,77 @@ var fetchSurvey = function(projectName) {
   })
 }
 
-//get osm file from omk submission, and return osm file as geojson
-var fetchSurveyOSM = function(osm,instanceId,projectName,index) {
-  request({
-    method: 'GET',
-    'auth': {
-      'user': settings.app.usr,
-      'pass': settings.app.psw
-    },
-    uri: 'http://omkserver.com/omk/data/submissions/' +
-          projectName + '/' + instanceId + '/' + osm
-  },
-  function(error, response, body) {
-    // when no errors occur, save json to projectJSON
-    if(!error && response.statusCode == 200) {
-      subOSM = body
-      subGeoJSON = oag.osm2geojson(body)
-      extend(subGeoJSON.features[0].properties,projectJSON[index])
+//parse projectJSON, return all .osm files and object properties
+var getSurveyOSMsProps = function(projectJSONobj) {
+  for(var prop in projectJSONobj) {
+    if(projectJSONobj.hasOwnProperty(prop)){
+      var currentValue = projectJSONobj[prop]
+      //if currentValue is an obj, 'go deep' ~ reqeat getSubOSMsProps
+      if(typeof currentValue === 'object') {
+        getSurveyOSMsProps(currentValue)
+      }
+      else {
+        //when anything else, make it a string, see if it is .osm
+        currentValue = currentValue.toString()
+        if(currentValue.slice(-4).toLowerCase() === '.osm') {
+          //when the osm file, set osmFile equal to it
+          osmFile = currentValue;
+          osmFileList.push(osmFile)
+        }
+      }
     }
-  })
+  }
+  osmFilesProps = {instanceId: [osmFileList,projectJSONobj]}
+}
 
+
+
+//get osm file from omk submission, and return osm file as geojson
+
+//make it so it unpacks all osm files in the submission.
+var fetchSurveyOSM = function(osmFilesProps,projectName) {
+  for(i=0; i < osmFilesProps.instanceId[0].length; i++ ) {
+    osm = osmFilesProps.instanceId[0][i]
+    moreGeoJSONprops = osmFilesProps.instanceId[1]
+    request({
+      method: 'GET',
+      'auth': {
+        'user': settings.app.user,
+        'pass': settings.app.pass
+      },
+      uri: 'http://omkserver.com/omk/data/submissions/' +
+            projectName + '/' + instanceId + '/' + osm
+    },
+    function(error, response, body) {
+      // when no errors occur, save json to projectJSON
+      if(!error && response.statusCode == 200) {
+        subOSM = body
+        subGeoJSON = oag.osm2geojson(subOSM)
+        extend(subGeoJSON.features[0].properties,moreGeoJSONprops)
+      }
+    })
+    subGeoJSONs.push(subGeoJSON)
+  }
 }
 
 // convert sub osms to geojson, put each sub's object into geojson properties //
-var subOSMtoGeoJSON = function(projectJSON) {
+var surveyOSMtoGeoJSON = function(projectJSON) {
   //iterate over objects, if contains osm, convert to / add props to geojson
   for(i=0; i < projectJSON.length; i++ ) {
+    osmFile = null;
+    osmFileList = []
+    osmFilesProps = {}
     instanceId = projectJSON[i].meta.instanceId
     instanceId = instanceId.split("uuid:")[1]
-    if(projectJSON[i].osm_building) {
-      //let 'em know we have an osm file
-      console.log('can convert osm file "' + instanceId + '" to GeoJSON at ' + i)
-      osmFile = projectJSON[i].osm_building.originalFilename
-      fetchSurveyOSM(osmFile,instanceId,projectName,i)
-      subGeoJSONs.push(subGeoJSON)
-    }
-    else {
-      //let 'em know we do not have an osm file
-      console.log('cannot convert osm file "' + instanceId + '" to GeoJSON at ' + i)
+    projectJSONobj = projectJSON[i]
+    getSurveyOSMsProps(projectJSONobj)
+    if(osmFile) {
+      fetchSurveyOSM(osmFilesProps,projectName)
     }
   }
 }
 
 fetchSurvey(projectName)
-subOSMtoGeoJSON(projectJSON)
-//projectGeoJSON = geojsonMerge.mergeFeatureCollectionStream(projectGeoJSONs)
+surveyOSMtoGeoJSON(projectJSON)
+
+projectGeoJSON = geojsonMerge.mergeFeatureCollectionStream(projectGeoJSONs)

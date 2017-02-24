@@ -4,7 +4,7 @@
   "description": "Script to make GeoJSON of OpenMapKit survey submissions.",
   "main": "omk-odk-geojson.js",
   "dependencies": {
-    "geojson-merge": "^1.0.2",
+    "geojson-merge": "^0.3.0",
     "osm-and-geojson": "^0.1.2",
     "osmtogeojson": "^3.0.0-beta.0",
     "request": "^2.79.0"
