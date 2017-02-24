@@ -9,6 +9,7 @@ var oag = require('osm-and-geojson');
 var extend = require('extend')
 var DOMParser = require('xmldom').DOMParser
 var geojsonMerge = require('geojson-merge')
+var sizeOf = require('object-sizeof')
 
 // GET submissions json for projectName with omk api //
 
@@ -17,13 +18,12 @@ var projectName = 'colombia_buildings';
 //JSON returned from call to omkserver endpoint in fetchSurvey
 var projectJSON = '';
 //osm XML string from call to omkserver endpoint in fetchSurveyOSM
-var subOSM = ''
-//geojson made from subOSM, using osm-and-geojson
-var subGeoJSON = ''
+var subOSM = '';
+var subGeoJSON = {};
 //list of obj where key = instanceId, val = subGeoJSON
-var subGeoJSONs = []
+var subGeoJSONs = [];
 //geojson object holding all data in projectJSON
-var projectGeoJSON = ''
+var projectGeoJSON = '';
 
 //get omk submission w/request for projectName & save to projectName
 var fetchSurvey = function(projectName) {
@@ -63,18 +63,16 @@ var getSurveyOSMsProps = function(projectJSONobj) {
       }
     }
   }
-  osmFilesProps = {instanceId: [osmFileList,projectJSONobj]}
+  osmFilesProps = {osmProps: [osmFileList,projectJSONobj]}
 }
-
-
 
 //get osm file from omk submission, and return osm file as geojson
 
 //make it so it unpacks all osm files in the submission.
 var fetchSurveyOSM = function(osmFilesProps,projectName) {
-  for(i=0; i < osmFilesProps.instanceId[0].length; i++ ) {
-    osm = osmFilesProps.instanceId[0][i]
-    moreGeoJSONprops = osmFilesProps.instanceId[1]
+  moreGeoJSONprops = osmFilesProps.osmProps[1]
+  for(j=0; j < osmFilesProps.osmProps[0].length; j++ ) {
+    osm = osmFilesProps.osmProps[0][j]
     request({
       method: 'GET',
       'auth': {
@@ -85,13 +83,14 @@ var fetchSurveyOSM = function(osmFilesProps,projectName) {
             projectName + '/' + instanceId + '/' + osm
     },
     function(error, response, body) {
-      // when no errors occur, save json to projectJSON
+      // when no errors occur, save json to subGeoJSON
       if(!error && response.statusCode == 200) {
         subOSM = body
-        subGeoJSON = oag.osm2geojson(subOSM)
-        extend(subGeoJSON.features[0].properties,moreGeoJSONprops)
+        subGeoJSON[instanceId] = oag.osm2geojson(subOSM)
+        extend(subGeoJSON[instanceId].features[0].properties,moreGeoJSONprops)
       }
     })
+    //push subGeoJSON to subGeoJSONs
     subGeoJSONs.push(subGeoJSON)
   }
 }
@@ -107,8 +106,12 @@ var surveyOSMtoGeoJSON = function(projectJSON) {
     instanceId = instanceId.split("uuid:")[1]
     projectJSONobj = projectJSON[i]
     getSurveyOSMsProps(projectJSONobj)
-    if(osmFile) {
-      fetchSurveyOSM(osmFilesProps,projectName)
+    console.log(i)
+    if(osmFilesProps.osmProps[0]) {
+      //some console.loging to make loop working.
+      console.log('making geoJSONs!')
+      fetchSurveyOSM(osmFilesProps,projectName,instanceId)
+      console.log('we are on ' + i)
     }
   }
 }
@@ -116,4 +119,4 @@ var surveyOSMtoGeoJSON = function(projectJSON) {
 fetchSurvey(projectName)
 surveyOSMtoGeoJSON(projectJSON)
 
-projectGeoJSON = geojsonMerge.mergeFeatureCollectionStream(projectGeoJSONs)
+projectGeoJSON = geojsonMerge.    getSurveyOSMsProps(projectJSONobj)
