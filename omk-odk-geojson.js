@@ -70,7 +70,6 @@ var getSurveyOSMsProps = function(projectJSONobj) {
 
 //make it so it unpacks all osm files in the submission.
 var fetchSurveyOSM = function(osmFilesProps,projectName,instanceId) {
-  osmFilesProps = osmFilesProps
   instanceId = instanceId
   for(j=0; j < osmFilesProps.osmProps[0].length; j++ ) {
     osm = osmFilesProps.osmProps[0][j]
