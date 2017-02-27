@@ -10,7 +10,8 @@
     "json-stringify": "^1.0.0",
     "osm-and-geojson": "^0.1.2",
     "osmtogeojson": "^3.0.0-beta.0",
-    "request": "^2.79.0"
+    "request": "^2.79.0",
+    "xmldom": "^0.1.27"
   },
   "devDependencies": {},
   "scripts": {

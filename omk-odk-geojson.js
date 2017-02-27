@@ -24,11 +24,11 @@ var userFolder = "/Users/giscomputerextra2/Desktop/max/github/americanredcross/o
 //name for output geoJSON
 var outputGeoJSON = userFolder + projectName + '.geojson'
 //JSON returned from call to omkserver endpoint in fetchSurvey
-var projectJSON = '';
+// var projectJSON = '';
 var subGeoJSONs = {};
 
 //get omk submission w/request for projectName & save to projectName
-var fetchSurveyGeo = function(projectName) {
+var fetchSurveyGeo = function(cb) {
   request({
     method: 'GET',
     'auth': {
@@ -40,7 +40,9 @@ var fetchSurveyGeo = function(projectName) {
   function(error, response, body) {
     // when no errors occur, save json to projectJSON
     if(!error && response.statusCode == 200) {
-      projectJSON = JSON.parse(body);
+      var projectJSON = JSON.parse(body);
+      console.log('before callback 1')
+      cb(null, projectJSON)
     }
   })
 }
@@ -71,7 +73,7 @@ var getSurveyOSMsProps = function(projectJSONobj) {
 //get osm file from omk submission, and return osm file as geojson
 
 //make it so it unpacks all osm files in the submission.
-var fetchSurveyOSM = function(osmFilesProps,projectName,instanceId) {
+var fetchSurveyOSM = function(osmFilesProps,projectName,instanceId,cb) {
   for(j=0; j < osmFilesProps.osmProps[0].length; j++ ) {
     osm = osmFilesProps.osmProps[0][j]
     request({
@@ -89,13 +91,16 @@ var fetchSurveyOSM = function(osmFilesProps,projectName,instanceId) {
         subOSM = body
         subGeoJSONs[instanceId] = oag.osm2geojson(subOSM)
         extend(subGeoJSONs[instanceId].features[0].properties,osmFilesProps.osmProps[1])
+        if(cb){cb(null,'end')}
       }
     })
   }
 }
 
 // convert sub osms to geojson, put each sub's object into geojson properties //
-var surveyOSMtoGeoJSON = function(projectJSON) {
+var surveyOSMtoGeoJSON = function(projectJSON, cb) {
+  // console.log(projectJSON)
+  // console.log(cb)
   //iterate over objects, if contains osm, convert to / add props to geojson
   console.log('making geoJSONs!')
   for(i=0; i < projectJSON.length; i++ ) {
@@ -108,14 +113,21 @@ var surveyOSMtoGeoJSON = function(projectJSON) {
     var projectJSONobj = projectJSON[i]
     getSurveyOSMsProps(projectJSONobj)
     if(osmFilesProps.osmProps[0]) {
-      //some console.loging to make loop working.
-      fetchSurveyOSM(osmFilesProps,projectName,instanceId)
-      console.log('Just converted the ' + i = 'th submission!')
+      if(i + 1 === (projectJSON.length)) {
+        fetchSurveyOSM(osmFilesProps,projectName,instanceId,cb)
+        console.log('Just converted the last submission!')
+      } else {
+        //some console.loging to make loop working.
+        fetchSurveyOSM(osmFilesProps,projectName,instanceId,null)
+        console.log('Just converted the ' + i + 'th submission!')
+      }
     }
   }
 }
 
-var writeGeoJSON = function(subGeoJSONs) {
+var writeGeoJSON = function(mystring,cb) {
+  console.log('Write GeoJSON')
+  console.log("mystring")
   var projectGeoJSON = geojsonMerge(Object.values(subGeoJSONs))
   //make geojson right-hand compliant
   projectGeoJSON = rewind(projectGeoJSON,false)
@@ -123,8 +135,9 @@ var writeGeoJSON = function(subGeoJSONs) {
   projectGeoJSON = stringify(projectGeoJSON)
   //write merged geoJSON to a file!
   fs.writeFile(outputGeoJSON, projectGeoJSON, (err) => {
-  if (err) throw err;
-    console.log('It\'s saved!');
+    if (err) throw err;
+    //console.log('It\'s saved!');
+    cb(null,'It\'s saved!')
   });
 }
 
@@ -133,8 +146,11 @@ var writeGeoJSON = function(subGeoJSONs) {
 //return survey GeoJSON
 
 async.waterfall([
-  fetchSurveyGeo(projectName),
-  surveyOSMtoGeoJSON(projectJSON),
-  writeGeoJSON(subGeoJSONs)
+  fetchSurveyGeo,
+  surveyOSMtoGeoJSON,
+  writeGeoJSON
 ], function (err, result) {
+  console.log(result)
 })
+
+//
