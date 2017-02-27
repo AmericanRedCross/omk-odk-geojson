@@ -7,6 +7,7 @@ var async = require('async')
 var fs = require('fs');
 var extend = require('extend');
 var DOMParser = require('xmldom').DOMParser;
+var flatten = require('flat')
 var geojsonMerge = require('geojson-merge');
 var o2g = require('osmtogeojson');
 var request = require('request');
@@ -67,7 +68,7 @@ var getSurveyOSMsProps = function(projectJSONobj) {
       }
     }
   }
-  osmFilesProps = {osmProps: [osmFileList,projectJSONobj]}
+  osmFilesProps = {osmProps: [osmFileList,flatten(projectJSONobj)]}
 }
 
 //get osm file from omk submission, and return osm file as geojson
@@ -129,7 +130,6 @@ var surveyOSMtoGeoJSON = function(projectJSON, cb) {
 
 var writeGeoJSON = function(mystring,cb) {
   console.log('Write GeoJSON')
-  console.log("mystring")
   var projectGeoJSON = geojsonMerge(Object.values(subGeoJSONs))
   //make geojson right-hand compliant
   projectGeoJSON = rewind(projectGeoJSON,false)
