@@ -11,10 +11,12 @@ var oag = require('osm-and-geojson');
 var request = require('request');
 var settings = require('./settings.js');
 var sizeOf = require('object-sizeof');
+var stringify = require('json-stringify')
 
 // GET submissions json for projectName with omk api //
 
 //name of project to get submissions json for
+TODO: eventually make this populate via user selection on omk?
 var projectName = 'colombia_buildings';
 //JSON returned from call to omkserver endpoint in fetchSurvey
 var projectJSON = '';
@@ -22,8 +24,6 @@ var projectJSON = '';
 var subOSM = '';
 //object holding geosjsons and instanceId for each submission
 var subGeoJSONs = {};
-//geojson object holding all data in projectJSON
-var projectGeoJSON = '';
 
 //get omk submission w/request for projectName & save to projectName
 var fetchSurvey = function(projectName) {
@@ -70,7 +70,6 @@ var getSurveyOSMsProps = function(projectJSONobj) {
 
 //make it so it unpacks all osm files in the submission.
 var fetchSurveyOSM = function(osmFilesProps,projectName,instanceId) {
-  instanceId = instanceId
   for(j=0; j < osmFilesProps.osmProps[0].length; j++ ) {
     osm = osmFilesProps.osmProps[0][j]
     request({
@@ -124,8 +123,11 @@ var writeSurveyGeoJSON = function(subGeoJSONs) {
 
 fetchSurvey(projectName)
 surveyOSMtoGeoJSON(projectJSON)
+//geojson object holding all data in projectJSON
+var projectGeoJSON = geojsonMerge(Object.values(subGeoJSONs))
+projectGeoJSON = stringify(projectGeoJSON)
 
-//fs.writeFile("/Users/giscomputerextra2/Desktop/max/github/americanredcross/omk-odk-geojson/mergedSubGeoJSON.geojson", geojsonMerge(Object.values(subGeoJSONs)), (err) => {
-//  if (err) throw err;
-//  console.log('It\'s saved!');
-//});
+fs.writeFile("/Users/giscomputerextra2/Desktop/max/github/americanredcross/omk-odk-geojson/columbia-buildings.geojson", projectGeoJSON, (err) => {
+  if (err) throw err;
+  console.log('It\'s saved!');
+});
