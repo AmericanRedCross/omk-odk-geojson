@@ -3,6 +3,7 @@
 //purpose: grab .osm files attached to omk submissions and spatialize submissions
 
 // node modules //
+var async = require('async')
 var DOMParser = require('xmldom').DOMParser;
 var fs = require('fs');
 var extend = require('extend');
@@ -42,7 +43,6 @@ var fetchSurveyGeo = function(projectName) {
       projectJSON = JSON.parse(body);
     }
   })
-  surveyOSMtoGeoJSON(projectJSON)
 }
 
 //parse projectJSON, return all .osm files and object properties
@@ -97,6 +97,7 @@ var fetchSurveyOSM = function(osmFilesProps,projectName,instanceId) {
 // convert sub osms to geojson, put each sub's object into geojson properties //
 var surveyOSMtoGeoJSON = function(projectJSON) {
   //iterate over objects, if contains osm, convert to / add props to geojson
+  console.log('making geoJSONs!')
   for(i=0; i < projectJSON.length; i++ ) {
     //object holding geosjsons and instanceId for each submission
     osmFile = null;
@@ -106,32 +107,34 @@ var surveyOSMtoGeoJSON = function(projectJSON) {
     instanceId = instanceId.split("uuid:")[1]
     var projectJSONobj = projectJSON[i]
     getSurveyOSMsProps(projectJSONobj)
-    console.log(i)
     if(osmFilesProps.osmProps[0]) {
       //some console.loging to make loop working.
-      console.log('making geoJSONs!')
       fetchSurveyOSM(osmFilesProps,projectName,instanceId)
-      console.log('we are on ' + i)
+      console.log('Just converted the ' + i = 'th submission!')
     }
   }
 }
 
-//TODO: test with a bunch of different surveys and also try and make the projectNANE dynamic
-//get survey's json
-
-fetchSurveyGeo(projectName)
-var projectGeoJSON = geojsonMerge(Object.values(subGeoJSONs))
-//make geojson right-hand compliant
-projectGeoJSON = rewind(projectGeoJSON,false)
-//stringify the geojson so it can be written to a file
-projectGeoJSON = stringify(projectGeoJSON)
-//write merged geoJSON to a file!
-fs.writeFile(outputGeoJSON, projectGeoJSON, (err) => {
+var writeGeoJSON = function(subGeoJSONs) {
+  var projectGeoJSON = geojsonMerge(Object.values(subGeoJSONs))
+  //make geojson right-hand compliant
+  projectGeoJSON = rewind(projectGeoJSON,false)
+  //stringify the geojson so it can be written to a file
+  projectGeoJSON = stringify(projectGeoJSON)
+  //write merged geoJSON to a file!
+  fs.writeFile(outputGeoJSON, projectGeoJSON, (err) => {
   if (err) throw err;
-  console.log('It\'s saved!');
-});
-//FIXME: I think I need to add pause, 'trottle' if you will, to give API a breather between fetchSurvey() and surveyOSMtoGeoJSON()
-//use returned json to get object holding geojsons for each submission
-//merge those submission geojsons into a single geojson
+    console.log('It\'s saved!');
+  });
+}
 
-//
+//TODO: test with a bunch of different surveys and also try and make the projectNANE dynamic
+//FIXME: async.waterfall runs, writing out a GeoJSON, but does throws an error
+//return survey GeoJSON
+
+async.waterfall([
+  fetchSurveyGeo(projectName),
+  surveyOSMtoGeoJSON(projectJSON),
+  writeGeoJSON(subGeoJSONs)
+], function (err, result) {
+})
