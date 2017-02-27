@@ -2,14 +2,15 @@
 //coder: Max Grossman
 //purpose: grab .osm files attached to omk submissions and spatialize submissions
 
-var settings = require('./settings.js');
 // node modules //
-var request = require('request');
+var DOMParser = require('xmldom').DOMParser;
+var fs = require('fs');
+var extend = require('extend');
+var geojsonMerge = require('geojson-merge');
 var oag = require('osm-and-geojson');
-var extend = require('extend')
-var DOMParser = require('xmldom').DOMParser
-var geojsonMerge = require('geojson-merge')
-var sizeOf = require('object-sizeof')
+var request = require('request');
+var settings = require('./settings.js');
+var sizeOf = require('object-sizeof');
 
 // GET submissions json for projectName with omk api //
 
@@ -69,8 +70,8 @@ var getSurveyOSMsProps = function(projectJSONobj) {
 
 //make it so it unpacks all osm files in the submission.
 var fetchSurveyOSM = function(osmFilesProps,projectName,instanceId) {
+  osmFilesProps = osmFilesProps
   instanceId = instanceId
-  moreGeoJSONprops = osmFilesProps.osmProps[1]
   for(j=0; j < osmFilesProps.osmProps[0].length; j++ ) {
     osm = osmFilesProps.osmProps[0][j]
     request({
@@ -87,7 +88,7 @@ var fetchSurveyOSM = function(osmFilesProps,projectName,instanceId) {
       if(!error && response.statusCode == 200) {
         subOSM = body
         subGeoJSONs[instanceId] = oag.osm2geojson(subOSM)
-        extend(subGeoJSONs[instanceId].features[0].properties,moreGeoJSONprops)
+        extend(subGeoJSONs[instanceId].features[0].properties,osmFilesProps.osmProps[1])
       }
     })
   }
@@ -102,7 +103,7 @@ var surveyOSMtoGeoJSON = function(projectJSON) {
     osmFilesProps = {}
     instanceId = projectJSON[i].meta.instanceId
     instanceId = instanceId.split("uuid:")[1]
-    projectJSONobj = projectJSON[i]
+    var projectJSONobj = projectJSON[i]
     getSurveyOSMsProps(projectJSONobj)
     console.log(i)
     if(osmFilesProps.osmProps[0]) {
@@ -114,11 +115,18 @@ var surveyOSMtoGeoJSON = function(projectJSON) {
   }
 }
 
-
+TODO: finish merge/write geojson
+TODO: make sure both .osm and csv (here json) properties are in the new geojson
+TODO: test with a bunch of different surveys and also try and make the projectNANE dynamic
 // write survey geojson. If more than 1 sub, use geojson-merge then write it out
 var writeSurveyGeoJSON = function(subGeoJSONs) {
-  
+  projectGeoJSON = geojsonMerge(Object.values(subGeoJSONs))
 }
 
 fetchSurvey(projectName)
 surveyOSMtoGeoJSON(projectJSON)
+
+//fs.writeFile("/Users/giscomputerextra2/Desktop/max/github/americanredcross/omk-odk-geojson/mergedSubGeoJSON.geojson", geojsonMerge(Object.values(subGeoJSONs)), (err) => {
+//  if (err) throw err;
+//  console.log('It\'s saved!');
+//});
