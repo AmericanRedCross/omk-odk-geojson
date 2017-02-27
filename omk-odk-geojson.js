@@ -4,11 +4,11 @@
 
 // node modules //
 var async = require('async')
-var DOMParser = require('xmldom').DOMParser;
 var fs = require('fs');
 var extend = require('extend');
+var DOMParser = require('xmldom').DOMParser;
 var geojsonMerge = require('geojson-merge');
-var oag = require('osm-and-geojson');
+var o2g = require('osmtogeojson');
 var request = require('request');
 var rewind = require('geojson-rewind')
 var settings = require('./settings.js');
@@ -28,7 +28,7 @@ var outputGeoJSON = userFolder + projectName + '.geojson'
 var subGeoJSONs = {};
 
 //get omk submission w/request for projectName & save to projectName
-var fetchSurveyGeo = function(cb) {
+var fetchSurvey = function(cb) {
   request({
     method: 'GET',
     'auth': {
@@ -88,8 +88,10 @@ var fetchSurveyOSM = function(osmFilesProps,projectName,instanceId,cb) {
     function(error, response, body) {
       // when no errors occur, save json to subGeoJSON
       if(!error && response.statusCode == 200) {
-        subOSM = body
-        subGeoJSONs[instanceId] = oag.osm2geojson(subOSM)
+        //convert osm file to DOM XML object
+        osmXMLdom = new DOMParser().parseFromString(body)
+        // covert to geojson
+        subGeoJSONs[instanceId] = o2g(osmXMLdom)
         extend(subGeoJSONs[instanceId].features[0].properties,osmFilesProps.osmProps[1])
         if(cb){cb(null,'end')}
       }
@@ -146,7 +148,7 @@ var writeGeoJSON = function(mystring,cb) {
 //return survey GeoJSON
 
 async.waterfall([
-  fetchSurveyGeo,
+  fetchSurvey,
   surveyOSMtoGeoJSON,
   writeGeoJSON
 ], function (err, result) {
