@@ -4,6 +4,7 @@
 
 // node modules //
 var async = require('async')
+var cliselect = require("list-selector-cli");
 var fs = require('fs');
 var extend = require('extend');
 var DOMParser = require('xmldom').DOMParser;
@@ -15,21 +16,48 @@ var rewind = require('geojson-rewind')
 var settings = require('./settings.js');
 var stringify = require('json-stringify');
 
+
 // GET submissions json for projectName with omk api //
 
 //name of project to get submissions json for
 //TODO: eventually make this populate via user selection on omk?
-var projectName = 'colombia_buildings';
+
+var projectName = {};
 //folder to write file to
 var userFolder = "/Users/giscomputerextra2/Desktop/max/github/americanredcross/omk-odk-geojson/"
 //name for output geoJSON
-var outputGeoJSON = userFolder + projectName + '.geojson'
 //JSON returned from call to omkserver endpoint in fetchSurvey
 // var projectJSON = '';
 var subGeoJSONs = {};
 
+var fetchSurveyName = function(cb) {
+  request({
+    method: 'GET',
+    'auth': {
+      'user': settings.app.user,
+      'pass': settings.app.pass
+    },
+    uri: 'http://omkserver.com/omk/odk/submissions'
+  },
+  function(error, response, body) {
+    // when no errors occur, save json to projectJSON
+    if(!error && response.statusCode == 200) {
+      surveyList =  JSON.parse(body);
+      for(i=0;i<surveyList.length;i++) {
+        surveyList[i] = surveyList[i].split("http://omkserver.com/omk/odk/submissions/")[1].split(".")[0]
+      }
+      //here binga points.
+      selectedSurvey = surveyList[44]
+      projectName[selectedSurvey] = selectedSurvey
+      console.log(selectedSurvey)
+      cb(null, selectedSurvey)
+    }
+  })
+}
+
 //get omk submission w/request for projectName & save to projectName
-var fetchSurvey = function(cb) {
+var fetchSurvey = function(projectName,cb) {
+  console.log(projectName)
   request({
     method: 'GET',
     'auth': {
@@ -42,7 +70,6 @@ var fetchSurvey = function(cb) {
     // when no errors occur, save json to projectJSON
     if(!error && response.statusCode == 200) {
       var projectJSON = JSON.parse(body);
-      console.log('before callback 1')
       cb(null, projectJSON)
     }
   })
@@ -84,7 +111,7 @@ var fetchSurveyOSM = function(osmFilesProps,projectName,instanceId,cb) {
         'pass': settings.app.pass
       },
       uri: 'http://omkserver.com/omk/data/submissions/' +
-            projectName + '/' + instanceId + '/' + osm
+            Object.values(projectName) + '/' + instanceId + '/' + osm
     },
     function(error, response, body) {
       // when no errors occur, save json to subGeoJSON
@@ -92,7 +119,8 @@ var fetchSurveyOSM = function(osmFilesProps,projectName,instanceId,cb) {
         //convert osm file to DOM XML object
         osmXMLdom = new DOMParser().parseFromString(body)
         // covert to geojson
-        subGeoJSONs[instanceId] = o2g(osmXMLdom)
+        subGeoJSON = o2g(osmXMLdom)
+        subGeoJSONs[instanceId] = subGeoJSON
         extend(subGeoJSONs[instanceId].features[0].properties,osmFilesProps.osmProps[1])
         if(cb){cb(null,'end')}
       }
@@ -102,7 +130,7 @@ var fetchSurveyOSM = function(osmFilesProps,projectName,instanceId,cb) {
 
 // convert sub osms to geojson, put each sub's object into geojson properties //
 var surveyOSMtoGeoJSON = function(projectJSON, cb) {
-  // console.log(projectJSON)
+  console.log(projectJSON)
   // console.log(cb)
   //iterate over objects, if contains osm, convert to / add props to geojson
   console.log('making geoJSONs!')
@@ -131,6 +159,7 @@ var surveyOSMtoGeoJSON = function(projectJSON, cb) {
 var writeGeoJSON = function(mystring,cb) {
   console.log('Write GeoJSON')
   var projectGeoJSON = geojsonMerge(Object.values(subGeoJSONs))
+  var outputGeoJSON = userFolder + Object.values(projectName) + '.geojson'
   //make geojson right-hand compliant
   projectGeoJSON = rewind(projectGeoJSON,false)
   //stringify the geojson so it can be written to a file
@@ -148,6 +177,7 @@ var writeGeoJSON = function(mystring,cb) {
 //return survey GeoJSON
 
 async.waterfall([
+  fetchSurveyName,
   fetchSurvey,
   surveyOSMtoGeoJSON,
   writeGeoJSON
